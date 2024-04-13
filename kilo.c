@@ -1,17 +1,31 @@
+/*included headers*/
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
 
+/*data*/
+
 struct termios orig_termios;
 
+/*terminal functions*/
+
+void die(const char *s) {
+    /*prints out errno global var*/
+    perrors(s);
+    /*exits with status of 1*/
+    exit(1);
+}
+
 void disableRawMode(){
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+        die("tcsetattr");
 }
 
 void enableRawMode() {
-    tcgetattr(STDIN_FILENO, &orig_termios);
+    if(tcgetattr(STDIN_FILENO, &orig_termios) == -1) die ("tcgetattr");
 
     /*from stdlib.h -> will automatically call specified function when program exits*/
     atexit(disableRawMode);
@@ -48,22 +62,30 @@ void enableRawMode() {
     raw.c_cc[VTIME] = 1;
 
 
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
+
+/*init func*/
 
 int main(){
     enableRawMode();
 
     char c;
     //read in chars: STDIN_FILENO is the std input, should quit when q is entered
-    while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q'){
+    while (1){
+        char c = '\0';
+        /*if read returns -1, it failed.
+        except on CYGWIN, where it will also return -1 and set errno to EAGAIN on time out
+        instead of just returning 0*/
+        if(read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
         //iscntrl method comes from ctype.h, checks whether each character entered is a control character
         if(iscntrl(c)){
             printf("%d\r\n", c);
         } else {
             printf("%d ('%c')\r\n", c, c);
         }
+        if(c == 'q') break;
     }
-   return 0;
 
+   return 0;
 }
