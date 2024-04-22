@@ -6,6 +6,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+/*defines*/
+
+#define CTRL_KEY(k) ((k) & 0x1f)
+
 /*data*/
 
 struct termios orig_termios;
@@ -65,6 +69,31 @@ void enableRawMode() {
     if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
+char editorReadKey() {
+    int nread;
+    char c;
+    /*if read returns -1, it failed.
+        except on CYGWIN, where it will also return -1 and set errno to EAGAIN on time out
+        instead of just returning 0*/
+    while((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+        if (nread == -1 && errono != EAGAIN) die("read");
+    }
+    return c;
+}
+
+/*input*/
+
+void editorProcessKeypress() {
+    char c = editorReadKey();
+
+    /*switch case for check the different types of ctrl keys*/
+    switch (c) {
+        case CTRL_KEY('q'):
+        exit(0);
+        break;
+    }
+}
+
 /*init func*/
 
 int main(){
@@ -73,18 +102,7 @@ int main(){
     char c;
     //read in chars: STDIN_FILENO is the std input, should quit when q is entered
     while (1){
-        char c = '\0';
-        /*if read returns -1, it failed.
-        except on CYGWIN, where it will also return -1 and set errno to EAGAIN on time out
-        instead of just returning 0*/
-        if(read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
-        //iscntrl method comes from ctype.h, checks whether each character entered is a control character
-        if(iscntrl(c)){
-            printf("%d\r\n", c);
-        } else {
-            printf("%d ('%c')\r\n", c, c);
-        }
-        if(c == 'q') break;
+        editorProcessKeypress();
     }
 
    return 0;
