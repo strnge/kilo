@@ -104,7 +104,7 @@ int editorReadKey() {
     }
     /*
      * for arrow key input instead of wasd, we must read multiple bytes
-     * and translate the arrow key to the appropriate wasd key
+     * and translate the arrow key/pgup/pgdn to the appropriate key value
      */
     if (c == '\x1b') {
         char seq[3];
@@ -113,11 +113,22 @@ int editorReadKey() {
         if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
 
         if (seq[0] == '[') {
-            switch(seq[1]) {
+            
+            if(seq[1] >= '0' && seq[1] <= '9') {
+                if (read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b';
+                if (seq[2] == '~'){
+                    switch(seq[1]){
+                        case '5': return PAGE_UP;
+                        case '6': return PAGE_DOWN;
+                    }
+                }
+            } else {   
+                switch(seq[1]) {
                 case 'A': return 'w';
                 case 'B': return 's';
                 case 'C': return 'd';
                 case 'D': return 'a';
+                }           
             }
         }
 
@@ -271,6 +282,15 @@ void editorProcessKeypress() {
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
+
+        case PAGE_UP:
+        case PAGE_DOWN:
+        {/*normally can't declare vars in a sc but the {} allow it sort of like an anonymous function almost??*/
+            int times = E.screenrows;
+
+            while(times--)
+                editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);/*ternary - if c == page up, use arrow_up, else use arrow_down*/
+        }    
         case ARROW_UP:
         case ARROW_DOWN:
         case ARROW_LEFT:
