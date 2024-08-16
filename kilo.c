@@ -124,10 +124,10 @@ int editorReadKey() {
                 }
             } else {   
                 switch(seq[1]) {
-                case 'A': return 'w';
-                case 'B': return 's';
-                case 'C': return 'd';
-                case 'D': return 'a';
+                case 'A': return ARROW_UP;
+                case 'B': return ARROW_DOWN;
+                case 'C': return ARROW_RIGHT;
+                case 'D': return ARROW_LEFT;
                 }           
             }
         }
@@ -265,7 +265,7 @@ void editorMoveCursor(int key) {
             }
             break;          
         case ARROW_DOWN:
-            if(E.cy != E.screenrows - ){
+            if(E.cy != E.screenrows - 1){
                 E.cy++;
             }
             break;
@@ -285,18 +285,19 @@ void editorProcessKeypress() {
 
         case PAGE_UP:
         case PAGE_DOWN:
-        {/*normally can't declare vars in a sc but the {} allow it sort of like an anonymous function almost??*/
-            int times = E.screenrows;
+            {/*normally can't declare vars in a sc but the {} allow it sort of like an anonymous function almost??*/
+                int times = E.screenrows;
 
-            while(times--)
-                editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);/*ternary - if c == page up, use arrow_up, else use arrow_down*/
-        }    
+                while(times--)
+                    editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);/*ternary - if c == page up, use arrow_up, else use arrow_down*/
+            }    
+            break;
         case ARROW_UP:
         case ARROW_DOWN:
         case ARROW_LEFT:
         case ARROW_RIGHT:
-        editorMoveCursor(c);
-        break;
+            editorMoveCursor(c);
+            break;
     }
 }
 
