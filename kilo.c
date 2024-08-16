@@ -13,6 +13,13 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define KILO_VERSION "0.0.1"
 
+enum editorKey {
+    ARROW_LEFT = 1000,
+    ARROW_RIGHT,
+    ARROW_UP,
+    ARROW_DOWN
+};
+
 /*data*/
 
 struct editorConfig {
@@ -82,16 +89,40 @@ void enableRawMode() {
     if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
-char editorReadKey() {
+int editorReadKey() {
     int nread;
     char c;
-    /*if read returns -1, it failed.
-        except on CYGWIN, where it will also return -1 and set errno to EAGAIN on time out
-        instead of just returning 0*/
+    /*
+     *  if read returns -1, it failed.
+     *  except on CYGWIN, where it will also return -1 and set errno to EAGAIN on time out
+     *  instead of just returning 0
+     */
     while((nread = read(STDIN_FILENO, &c, 1)) != 1) {
         if (nread == -1 && errno != EAGAIN) die("read");
     }
-    return c;
+    /*
+     * for arrow key input instead of wasd, we must read multiple bytes
+     * and translate the arrow key to the appropriate wasd key
+     */
+    if (c == '\x1b') {
+        char seq[3];
+
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
+
+        if (seq[0] == '[') {
+            switch(seq[1]) {
+                case 'A': return 'w';
+                case 'B': return 's';
+                case 'C': return 'd';
+                case 'D': return 'a';
+            }
+        }
+
+        return '\x1b';
+    } else {
+        return c;
+    }
 }
 
 int getCursorPosition(int *rows, int *cols) {
@@ -177,10 +208,12 @@ void editorDrawRows(struct abuf *ab){
     }
 }
 
-/*write 4 bytes out to the std out(terminal)  - first byte is \x1b(escape character, 27 dec), other 3 are 2[J*/
-/*this is an escape sequence, ie \x1b#[*LETTER* making up the sequence - the 2 option for command J says clear the entire screen*/
-/*determined by VT100 escseq, but for max compatibility ncurses lib might be better - VT100 is supported by most modern terminals though*/
-/*\x1b[H positions the cursor at the top*/
+/*
+ * write 4 bytes out to the std out(terminal)  - first byte is \x1b(escape character, 27 dec), other 3 are 2[J
+ * this is an escape sequence, ie \x1b#[*LETTER* making up the sequence - the 2 option for command J says clear the entire screen
+ * determined by VT100 escseq, but for max compatibility ncurses lib might be better - VT100 is supported by most modern terminals though
+ * \x1b[H positions the cursor at the top
+ */
 void editorRefreshScreen(){
     struct abuf ab = ABUF_INIT;
     
@@ -201,25 +234,25 @@ void editorRefreshScreen(){
 
 /*input*/
 
-void editorMoveCursor(char key) {
+void editorMoveCursor(int key) {
   switch (key) {
-        case 'a':
+        case ARROW_LEFT:
             E.cx--;
             break;  
-        case 'd':
+        case ARROW_RIGHT:
             E.cx++;
             break;
-        case 'w':
+        case ARROW_UP:
             E.cy--;
             break;          
-        case 's':
+        case ARROW_DOWN:
             E.cy++;
             break;
         }
 }
 
 void editorProcessKeypress() {
-    char c = editorReadKey();
+    int c = editorReadKey();
 
     /*switch case for check the different types of ctrl keys*/
     switch (c) {
@@ -228,10 +261,10 @@ void editorProcessKeypress() {
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
-        case 'w':
-        case 's':
-        case 'a':
-        case 'd':
+        case ARROW_UP:
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
         editorMoveCursor(c);
         break;
     }
